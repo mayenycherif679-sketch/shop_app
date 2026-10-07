@@ -12,22 +12,34 @@ class AsyncController<T> extends ChangeNotifier {
   bool loading = false;
   bool fromCache = false;
   String? error;
+  FailureType? errorType;
 
   Future<void> load() async {
     loading = true;
     error = null;
+    errorType = null;
     notifyListeners();
     try {
       final r = await _loader();
       data = r.data;
       fromCache = r.fromCache;
     } catch (e) {
-      error = Failure.from(e).message;
+      final f = Failure.from(e);
+      error = f.message;
+      errorType = f.type;
     }
     loading = false;
     notifyListeners();
   }
 }
+
+IconData _iconFor(FailureType? t) => switch (t) {
+      FailureType.network => Icons.wifi_off,
+      FailureType.server => Icons.dns_outlined,
+      FailureType.unauthorized || FailureType.forbidden => Icons.lock_outline,
+      FailureType.notFound => Icons.search_off,
+      _ => Icons.error_outline,
+    };
 
 /// Affiche loader / erreur + bouton réessayer / bandeau hors-ligne / contenu.
 class AsyncView<T> extends StatelessWidget {
@@ -46,7 +58,7 @@ class AsyncView<T> extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.cloud_off, size: 48),
+            Icon(_iconFor(c.errorType), size: 48),
             const SizedBox(height: 12),
             Text(c.error ?? 'Erreur', textAlign: TextAlign.center),
             const SizedBox(height: 12),
