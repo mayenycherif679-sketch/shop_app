@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # Le repo ne versionne que lib/, test/ et pubspec : on génère les dossiers plateformes.
+      - name: Generate platform folders
+        run: flutter create . --project-name shop_app --org com.example
+      - run: rm -f test/widget_test.dart
+      - run: flutter pub get
+      - name: Analyse statique
+        run: flutter analyze
+      - name: Tests unitaires
+        run: flutter test --coverage
+      - name: Build APK debug
+        run: flutter build apk --debug

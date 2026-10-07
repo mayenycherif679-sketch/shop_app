@@ -1,24 +1,15 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:shop_app/core/storage/cache_store.dart';
 import 'package:shop_app/core/utils/failure.dart';
 import 'package:shop_app/features/catalog/data/catalog_remote_data_source.dart';
 import 'package:shop_app/features/catalog/data/catalog_repository_impl.dart';
 
+import 'helpers.dart';
+
 class MockRemote extends Mock implements CatalogRemoteDataSource {}
 
-class FakeCache implements CacheStore {
-  final store = <String, dynamic>{};
-  @override
-  Future<void> write(String key, dynamic json) async => store[key] = json;
-  @override
-  dynamic read(String key) => store[key];
-  @override
-  Future<void> clear() async => store.clear();
-}
-
-final _json = [
+final _products = [
   {
     'id': 1,
     'title': 'Chaise',
@@ -28,15 +19,10 @@ final _json = [
     'category': {'id': 1, 'name': 'Maison', 'image': 'https://img.test/c.png'},
   }
 ];
-
-DioException _dioError(DioExceptionType type, {int? status}) {
-  final req = RequestOptions(path: '/products');
-  return DioException(
-    requestOptions: req,
-    type: type,
-    response: status == null ? null : Response(requestOptions: req, statusCode: status),
-  );
-}
+final _categories = [
+  {'id': 1, 'name': 'Maison', 'image': 'https://img.test/c.png'},
+  {'id': 2, 'name': 'Sport', 'image': 'https://img.test/s.png'},
+];
 
 void main() {
   late MockRemote remote;
@@ -49,46 +35,74 @@ void main() {
     repo = CatalogRepositoryImpl(remote, cache);
   });
 
-  test('retourne les données réseau et les met en cache', () async {
-    when(() => remote.products()).thenAnswer((_) async => _json);
+  test('produits : données réseau + mise en cache + nettoyage des URLs', () async {
+    when(() => remote.products()).thenAnswer((_) async => _products);
 
-    final result = await repo.getProducts();
+    final r = await repo.getProducts();
 
-    expect(result.fromCache, false);
-    expect(result.data.single.title, 'Chaise');
-    expect(result.data.single.images.single, 'https://img.test/1.png'); // nettoyage
+    expect(r.fromCache, false);
+    expect(r.data.single.title, 'Chaise');
+    expect(r.data.single.images.single, 'https://img.test/1.png');
     expect(cache.read('products'), isNotNull);
   });
 
-  test('hors-ligne : renvoie le cache si le réseau est indisponible', () async {
-    cache.store['products'] = _json;
-    when(() => remote.products())
-        .thenThrow(_dioError(DioExceptionType.connectionError));
+  test('catégories : données réseau + mise en cache', () async {
+    when(() => remote.categories()).thenAnswer((_) async => _categories);
 
-    final result = await repo.getProducts();
+    final r = await repo.getCategories();
 
-    expect(result.fromCache, true);
-    expect(result.data.single.categoryName, 'Maison');
+    expect(r.data.map((c) => c.name), ['Maison', 'Sport']);
+    expect(cache.read('categories'), hasLength(2));
   });
 
-  test('hors-ligne sans cache : lève une Failure réseau lisible', () async {
-    when(() => remote.categories())
-        .thenThrow(_dioError(DioExceptionType.connectionTimeout));
+  test('hors-ligne : renvoie le cache si le réseau est indisponible', () async {
+    cache.store['products'] = _products;
+    when(() => remote.products()).thenThrow(dioError(DioExceptionType.connectionError));
+
+    final r = await repo.getProducts();
+
+    expect(r.fromCache, true);
+    expect(r.data.single.categoryName, 'Maison');
+  });
+
+  test('timeout : bascule aussi sur le cache', () async {
+    cache.store['categories'] = _categories;
+    when(() => remote.categories()).thenThrow(dioError(DioExceptionType.receiveTimeout));
+
+    final r = await repo.getCategories();
+
+    expect(r.fromCache, true);
+    expect(r.data, hasLength(2));
+  });
+
+  test('hors-ligne sans cache : Failure réseau lisible', () async {
+    when(() => remote.categories()).thenThrow(dioError(DioExceptionType.connectionTimeout));
 
     expect(
       repo.getCategories(),
-      throwsA(isA<Failure>().having((f) => f.isNetwork, 'isNetwork', true)),
+      throwsA(isA<Failure>().having((f) => f.type, 'type', FailureType.network)),
     );
   });
 
-  test('erreur serveur 500 : ne masque pas l\'erreur avec le cache', () async {
-    cache.store['products'] = _json;
+  test('erreur serveur 500 : n\'est PAS masquée par le cache', () async {
+    cache.store['products'] = _products;
     when(() => remote.products())
-        .thenThrow(_dioError(DioExceptionType.badResponse, status: 500));
+        .thenThrow(dioError(DioExceptionType.badResponse, status: 500));
 
     expect(
       repo.getProducts(),
-      throwsA(isA<Failure>().having((f) => f.isNetwork, 'isNetwork', false)),
+      throwsA(isA<Failure>().having((f) => f.type, 'type', FailureType.server)),
+    );
+  });
+
+  test('403 : Failure "forbidden", pas de fallback cache', () async {
+    cache.store['products'] = _products;
+    when(() => remote.products())
+        .thenThrow(dioError(DioExceptionType.badResponse, status: 403));
+
+    expect(
+      repo.getProducts(),
+      throwsA(isA<Failure>().having((f) => f.type, 'type', FailureType.forbidden)),
     );
   });
 }
