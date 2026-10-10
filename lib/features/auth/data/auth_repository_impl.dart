@@ -26,7 +26,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        throw const Failure('Email ou mot de passe incorrect.', type: FailureType.unauthorized);
+        throw const Failure('Invalid credentials', type: FailureType.invalidCredentials);
       }
       throw Failure.from(e);
     }

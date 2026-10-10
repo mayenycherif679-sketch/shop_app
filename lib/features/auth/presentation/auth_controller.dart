@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../../../core/utils/failure.dart';
 import '../domain/auth_repository.dart';
 import '../domain/user.dart';
@@ -11,7 +12,7 @@ class AuthController extends ChangeNotifier {
 
   AuthStatus status = AuthStatus.unknown;
   User? user;
-  String? error;
+  FailureType? errorType;
   bool busy = false;
 
   Future<void> restore() async {
@@ -29,6 +30,7 @@ class AuthController extends ChangeNotifier {
   Future<void> logout() async {
     await _repo.logout();
     user = null;
+    errorType = null;
     status = AuthStatus.unauthenticated;
     notifyListeners();
   }
@@ -37,24 +39,24 @@ class AuthController extends ChangeNotifier {
   void sessionExpired() {
     user = null;
     status = AuthStatus.unauthenticated;
-    error = 'Ta session a expiré, reconnecte-toi.';
+    errorType = FailureType.unauthorized;
     notifyListeners();
   }
 
   void clearError() {
-    error = null;
+    errorType = null;
     notifyListeners();
   }
 
   Future<void> _run(Future<User> Function() action) async {
     busy = true;
-    error = null;
+    errorType = null;
     notifyListeners();
     try {
       user = await action();
       status = AuthStatus.authenticated;
     } catch (e) {
-      error = Failure.from(e).message;
+      errorType = Failure.from(e).type;
     }
     busy = false;
     notifyListeners();

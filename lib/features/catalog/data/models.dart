@@ -20,6 +20,17 @@ class ProductModel extends Product {
     required super.categoryName,
   });
 
+  /// Même forme que l'API : sert à persister les favoris puis à les relire
+  /// avec [ProductModel.fromJson].
+  static Map<String, dynamic> encode(Product p) => {
+        'id': p.id,
+        'title': p.title,
+        'price': p.price,
+        'description': p.description,
+        'images': p.images,
+        'category': {'id': 0, 'name': p.categoryName},
+      };
+
   factory ProductModel.fromJson(Map<String, dynamic> j) => ProductModel(
         id: j['id'] as int,
         title: j['title'] as String? ?? '',

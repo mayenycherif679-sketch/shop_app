@@ -1,60 +1,75 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'features/auth/presentation/auth_controller.dart';
+
+import 'features/auth/presentation/logout.dart';
 import 'features/auth/presentation/profile_page.dart';
-import 'features/catalog/presentation/catalog_pages.dart';
+import 'features/catalog/presentation/categories_page.dart';
+import 'features/catalog/presentation/products_page.dart';
+import 'features/favorites/presentation/favorites_page.dart';
+import 'l10n/app_localizations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _i = 0;
-  static const _titles = ['Produits', 'Catégories', 'Profil'];
+  int _index = 0;
 
-  Future<void> _confirmLogout() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Se déconnecter ?'),
-        content: const Text('Les données enregistrées sur l’appareil seront effacées.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Déconnexion')),
-        ],
-      ),
-    );
-    // logout() vide tokens + cache ; l'App bascule seule sur LoginPage (AuthStatus).
-    if (ok == true && mounted) await context.read<AuthController>().logout();
-  }
+  // const : ces sous-arbres ne sont jamais reconstruits par HomePage.
+  static const _pages = [
+    ProductsPage(),
+    CategoriesPage(),
+    FavoritesPage(),
+    ProfilePage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final titles = [
+      l10n.navProducts,
+      l10n.navCategories,
+      l10n.navFavorites,
+      l10n.navProfile,
+    ];
     return Scaffold(
       appBar: AppBar(
-        title: Text(_titles[_i]),
+        title: Text(titles[_index]),
         actions: [
           IconButton(
-            tooltip: 'Se déconnecter',
+            tooltip: l10n.logout,
             icon: const Icon(Icons.logout),
-            onPressed: _confirmLogout,
+            onPressed: () => confirmAndLogout(context),
           ),
         ],
       ),
-      body: IndexedStack(index: _i, children: const [
-        ProductsPage(),
-        CategoriesPage(),
-        ProfilePage(),
-      ]),
+      body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _i,
-        onDestinationSelected: (v) => setState(() => _i = v),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.shopping_bag_outlined), label: 'Produits'),
-          NavigationDestination(icon: Icon(Icons.category_outlined), label: 'Catégories'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profil'),
+        selectedIndex: _index,
+        onDestinationSelected: (i) => setState(() => _index = i),
+        destinations: [
+          NavigationDestination(
+            icon: const Icon(Icons.shopping_bag_outlined),
+            selectedIcon: const Icon(Icons.shopping_bag),
+            label: l10n.navProducts,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.category_outlined),
+            selectedIcon: const Icon(Icons.category),
+            label: l10n.navCategories,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.favorite_border),
+            selectedIcon: const Icon(Icons.favorite),
+            label: l10n.navFavorites,
+          ),
+          NavigationDestination(
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person),
+            label: l10n.navProfile,
+          ),
         ],
       ),
     );

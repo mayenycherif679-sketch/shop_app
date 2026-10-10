@@ -42,15 +42,14 @@ void main() {
     expect(tokens.refresh, 'R');
   });
 
-  test('login 401 : message "identifiants incorrects"', () async {
+  test('login 401 : Failure invalidCredentials', () async {
     when(() => remote.login(any(), any())).thenThrow(
         dioError(DioExceptionType.badResponse, status: 401, path: '/auth/login'));
 
     expect(
       repo.login('x@x.com', 'bad'),
       throwsA(isA<Failure>()
-          .having((f) => f.type, 'type', FailureType.unauthorized)
-          .having((f) => f.message, 'message', contains('incorrect'))),
+          .having((f) => f.type, 'type', FailureType.invalidCredentials)),
     );
     expect(tokens.access, isNull);
   });

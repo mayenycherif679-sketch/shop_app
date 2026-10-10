@@ -1,7 +1,7 @@
 name: shop_app
-description: App Flutter connectée (Clean Architecture, JWT, cache Hive, mode hors-ligne).
+description: App Flutter production-ready (Clean Architecture, JWT, cache hors-ligne, i18n FR/EN, tests).
 publish_to: none
-version: 1.0.0+1
+version: 1.2.0+3
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   dio: ^5.4.3
   hive_flutter: ^1.1.0
   flutter_secure_storage: ^9.2.2
@@ -16,6 +19,8 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^4.0.0
   mocktail: ^1.0.4
